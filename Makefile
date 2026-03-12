@@ -53,6 +53,7 @@ lint-strict:
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -name "*.pyc" -exec rm -f {} +
+	find . -name ".mypy_cache" -exec rm -rf {} +
 	rm -rf .venv
 
 .PHONY: build clean lint lint-strict
