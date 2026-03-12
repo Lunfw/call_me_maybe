@@ -1,7 +1,7 @@
 # torch
 # transformers
 # huggingface_hub
-flake8
-mypy
-uv
-./llm_sdk
+# flake8
+# mypy
+# uv
+# ./llm_sdk
