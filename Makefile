@@ -32,7 +32,7 @@ run:
 	@if [ ! -d .venv ]; then \
 		make build; \
 	fi
-	.venv/bin/uv run $(PY) -m src $1 $2 $3
+	.venv/bin/uv run $(PY) -m src
 
 lint:
 	@if [ ! -d .venv ]; then \
@@ -51,6 +51,8 @@ lint-strict:
 	.venv/bin/mypy src --strict
 
 clean:
-	rm -rf **/__pycache__ .venv .pyc
+	find . -type d -name __pycache__ -exec rm -rf {} +
+	find . -name "*.pyc" -exec rm -f {} +
+	rm -rf .venv
 
 .PHONY: build clean lint lint-strict

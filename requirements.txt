@@ -1,3 +1,7 @@
 mypy
+torch
+transformers
+huggingface_hub
 flake8
 uv
+./llm_sdk
