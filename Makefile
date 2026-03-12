@@ -53,4 +53,4 @@ lint-strict:
 clean:
 	rm -rf **/__pycache__ .venv .pyc
 
-.PHONY: build clean
+.PHONY: build clean lint lint-strict
