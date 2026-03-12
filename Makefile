@@ -20,7 +20,7 @@ build:
 		echo "You can use the following commands:"; \
 		echo "$(CYAN)source .venv/bin/activate$(RESET) - activate the venv"; \
 		echo "$(CYAN)source .venv/bin/deactivate$(RESET) - deactivate the venv"; \
-		.venv/bin/pip install -r requirements.txt -qqq; \
+		.venv/bin/pip install -r requirements.txt -qq; \
 	else \
 		echo "\n$(RED)A virtual environment already exists.$(RESET)"; \
 		echo "You can use the following commands:"; \
