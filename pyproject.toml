@@ -1,0 +1,18 @@
+[project]
+name = "call_me_maybe"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "transformers",
+    "torch",
+    "huggingface-hub",
+    "llm_sdk",
+    "flake8",
+    "mypy"
+]
+
+[tool.uv.sources]
+llm_sdk = { path = "llm_sdk" }
+
+[project.scripts]
+run = "src.__main__:main"
