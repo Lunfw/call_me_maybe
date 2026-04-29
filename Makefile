@@ -11,6 +11,7 @@ RED	= \033[1;31m
 GREEN	= \033[1;32m
 CYAN	= \033[1;36m
 RESET	= \033[0m
+ARGS	= $(filter-out $@, $(MAKECMDGOALS))
 
 all: build
 	@echo "\nUsage:"; \
@@ -28,28 +29,27 @@ build:
 		echo "You can use the following commands:"; \
 		echo "$(CYAN)source .venv/bin/activate$(RESET) - activate the venv"; \
 		echo "$(CYAN)source .venv/bin/deactivate$(RESET) - deactivate the venv"; \
-	else \
-		echo "\n$(RED)A virtual environment already exists.$(RESET)"; \
-		echo "You can use the following commands:"; \
-		echo "$(CYAN)source $(VENV)/bin/activate$(RESET) - activate the venv"; \
-		echo "$(CYAN)source $(VENV)/bin/deactivate$(RESET) - deactivate the venv"; \
 	fi
 
 run: build
-	$(UV) run $(PY) src $(ARGS)
+	$(UV) run $(PY) -m src $(ARGS)
+
+%:
+	@:
+
 
 debug: build
-	$(VENV)/bin/$(UV) run $(PDB) -m src $(ARGS)
+	$(VENV)/bin/$(PDB) -m src $(ARGS)
 
 lint: build
-	@echo "\0"
-	$(UV) run flake8 src
+	@echo "\0"; \
+	$(UV) run flake8 src; \
 	$(UV) run mypy src
 
 
 lint-strict: build
-	@echo "\0"
-	$(UV) run $(VENV)/bin/flake8 src --select=F
+	@echo "\0"; \
+	$(UV) run $(VENV)/bin/flake8 src --select=F; \
 	$(UV) run $(VENV)/bin/mypy src --strict
 
 clean:

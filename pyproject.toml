@@ -8,7 +8,9 @@ dependencies = [
     "huggingface-hub",
     "llm_sdk",
     "flake8",
-    "mypy"
+    "pudb",
+    "mypy",
+    "pydantic"
 ]
 
 [tool.uv.sources]
