@@ -2,6 +2,7 @@ import time
 import typing
 import torch
 
+from typing import Any
 from transformers import AutoModelForCausalLM
 from transformers import AutoTokenizer
 from transformers import PreTrainedTokenizer
@@ -42,7 +43,7 @@ class Small_LLM_Model:
                 torch.float32
         self._dtype = dtype
 
-        self._tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
+        self._tokenizer: Any = AutoTokenizer.from_pretrained(
             model_name, trust_remote_code=trust_remote_code
         )
         if self._tokenizer.pad_token_id is None:
@@ -117,5 +118,6 @@ class Small_LLM_Model:
 __all__ = [
         'time',
         'typing',
-        'os'
+        'os',
+        'Small_LLM_Model'
         ]
