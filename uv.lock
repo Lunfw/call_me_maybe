@@ -39,25 +39,19 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "flake8" },
-    { name = "huggingface-hub" },
     { name = "llm-sdk" },
     { name = "mypy" },
     { name = "pudb" },
     { name = "pydantic" },
-    { name = "torch" },
-    { name = "transformers" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "flake8" },
-    { name = "huggingface-hub" },
     { name = "llm-sdk", directory = "llm_sdk" },
     { name = "mypy" },
     { name = "pudb" },
     { name = "pydantic" },
-    { name = "torch" },
-    { name = "transformers" },
 ]
 
 [[package]]
