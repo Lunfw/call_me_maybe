@@ -58,6 +58,5 @@ clean:
 	find . -name ".mypy_cache" -exec rm -rf {} +
 	rm -rf .venv
 	rm -rf .cache
-	rm -rf data/output/*.json
 
 .PHONY: all build clean lint lint-strict
