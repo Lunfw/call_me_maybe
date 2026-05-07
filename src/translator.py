@@ -16,7 +16,9 @@ class Translator:
     def load_context(context_path: str, functions: List[Any]) -> str:
         text: str = 'Available functions:'
         for i in functions:
-            params: str = ', '.join(f'{k}: {v.type}' for k, v in i.parameters.items())
+            params: str = ', '.join(
+                        f'{k}: {v.type}' for k, v in i.parameters.items()
+                    )
             text += '\n- ' + i.name + f'({params}): ' + i.description
         with open(context_path) as f:
             return (f.read() + text + '<|im_end|>')
