@@ -43,14 +43,14 @@ debug: build
 
 lint: build
 	@echo "\0"; \
-	$(UV) run --no-sync flake8 src; \
-	$(UV) run mypy --no-sync src
+	$(UV) run --no-sync $(VENV)/bin/flake8 src; \
+	$(UV) run --no-sync $(VENV)/bin/mypy src
 
 
 lint-strict: build
 	@echo "\0"; \
-	$(UV) run $(VENV)/bin/flake8 src --select=F; \
-	$(UV) run $(VENV)/bin/mypy src --strict
+	$(UV) run --no-sync $(VENV)/bin/flake8 src --select=F; \
+	$(UV) run --no-sync $(VENV)/bin/mypy src --strict
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +

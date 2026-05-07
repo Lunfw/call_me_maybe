@@ -1,12 +1,12 @@
 from llm_sdk import Small_LLM_Model
 from sys import argv, exit, stderr
-from typing import Dict, Any, Iterator, List, Union
+from typing import Dict, Any, Iterator, List, Union, Tuple
 from json import load, dump, loads
 from argparse import ArgumentParser
 from src.schema import FunctionDefinition, Prompt
 from src.translator import Translator
 from src.colors import Format
-from os import path
+from os import path, makedirs
 from pydantic import ValidationError
 
 
@@ -16,8 +16,10 @@ class Parser:
         parser = ArgumentParser()
         parser.add_argument('--functions_definition', required=True)
         parser.add_argument('--input', required=True)
+        parser.add_argument('--stdin', default=False)
         parser.add_argument(
-                '--output', default='data/output/function_calling_results.json'
+                '--output',
+                default='function_calling_results.json'
                 )
         parser.add_argument('--max_token', default=200)
         args = parser.parse_args()
@@ -25,7 +27,7 @@ class Parser:
 
     @staticmethod
     def if_exist(receipt: Dict[str, str]) -> Dict[str, Any]:
-        exclude: Tuple[str] = ('max_token')
+        exclude: Tuple[str] = ('max_token', 'output', 'stdin')
         for i in receipt.keys():
             try:
                 if (path.exists(receipt[i]) or i in exclude):
@@ -45,8 +47,9 @@ class Loader:
 
     @staticmethod
     def json_get(data: Dict[str, Any]) -> None:
+        exclude = ('max_token', 'output', 'stdin')
         for key, value in data.items():
-            if (key != 'output' and key != 'max_token'):
+            if (key not in exclude):
                 yield Loader.json_parse(Loader.json_load(value), key)
 
     @staticmethod
@@ -91,7 +94,10 @@ class Main:
                     "parameters": llm_json['parameters']
             }
             results.append(result)
-        dump(results, open(Parser.parse()['output'], 'w'), indent=2)
+        if (not path.exists('data/output')):
+            makedirs('data/output')
+        file_dump: str = 'data/output/' + Parser.parse()['output']
+        dump(results, open(file_dump, 'w'), indent=2)
 
     def debug(self) -> None:
         print('')
