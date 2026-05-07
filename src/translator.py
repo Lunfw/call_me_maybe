@@ -1,7 +1,8 @@
-from typing import Dict, Any, Optional, List
-from json import load, loads
+from typing import Dict, Any, List
+from json import load
 from src.colors import Format
 from numpy import argmax
+from time import sleep, perf_counter
 
 
 class Translator:
@@ -27,9 +28,19 @@ class Translator:
     def load_vocab(vocab_path: str) -> Dict[str, int]:
         with open(vocab_path) as f:
             return (load(f))
-    
+
+    def get_prompt(self, prompt: str) -> str:
+        temp: List[str] = [self.context,
+                           '<|im_start|>user\n/no_think\n',
+                           prompt,
+                           '<|im_end|>\n<|im_start|>assistant\n'
+                        ]
+        prompt = ''.join(temp)
+        return (prompt)
+
     def generate(self, prompt: str, model, max_tokens: int) -> str:
-        prompt: str = f'{self.context}<|im_start|>user\n/no_think\n{prompt}<|im_end|>\n<|im_start|>assistant\n'
+        start = perf_counter()
+        prompt: str = self.get_prompt(prompt)
         input_ids = model.encode(prompt).squeeze().tolist()
         prompt_len = len(input_ids)
         for i in range(max_tokens):
@@ -39,8 +50,14 @@ class Translator:
                 break
             input_ids.append(next_token)
         output = model.decode(input_ids[prompt_len:])
-        start = output.find('{')
-        end = output.rfind('}')
-        if (start != -1 and end != -1):
-            output = output[start:end + 1]
+        json_start = output.find('{')
+        json_end = output.rfind('}')
+        if (json_start != -1 and json_end != -1):
+            output = output[json_start:json_end + 1]
+        print(Format.colored('│ ANSWER: ', 'GREEN'), end='')
+        for char in output:
+            print(Format.colored(char, 'GREEN'), end='', flush=True)
+            sleep(0.03)
+        end = perf_counter()
+        print(Format.colored(f' ({end - start:.2f} sec)', 'GREEN'))
         return (output)

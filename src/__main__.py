@@ -76,9 +76,11 @@ class Main:
         self.run()
 
     def run(self) -> None:
+        Format().draw_margin()
         results: List[str] = []
         max_tokens: int = int(Parser.parse()['max_token'])
         for prompt in self.prompts:
+            print(Format.colored('\n\n│ PROMPT: ' + prompt.prompt, 'CYAN'))
             llm_json = loads(self.translated.generate(prompt.prompt,
                                              self.model,
                                              max_tokens)
@@ -111,4 +113,5 @@ if (__name__ == "__main__"):
         Main()
     except Exception as e:
         print(Format.colored(f'\nError: {e}', 'RED'), file=stderr)
+    print(Format.colored('\n\n│ DONE!', 'GOLD'))
     exit(0)
