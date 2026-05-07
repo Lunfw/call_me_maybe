@@ -7,7 +7,7 @@ from numpy import argmax
 class Translator:
     def __init__(self, vocab_path: str, funcs: List[Any]):
         self.vocab: Dict[str, int] = self.load_vocab(vocab_path)
-        self.context: str = Translator.load_context('data/context.md', funcs)
+        self.context: str = Translator.load_context('context.md', funcs)
         self.id_to_token: Dict[int, str] = {
                     v: k for k, v in self.vocab.items()
                 }

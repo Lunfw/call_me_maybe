@@ -16,7 +16,9 @@ class Parser:
         parser = ArgumentParser()
         parser.add_argument('--functions_definition', required=True)
         parser.add_argument('--input', required=True)
-        parser.add_argument('--output', default='data/output/output.json')
+        parser.add_argument(
+                '--output', default='data/output/function_calling_results.json'
+                )
         parser.add_argument('--max_token', default=200)
         args = parser.parse_args()
         return (vars(args))

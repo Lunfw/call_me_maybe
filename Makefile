@@ -3,7 +3,7 @@ export HF_HOME			= .cache/hugging/face
 export TRANSFORMERS_CACHE	= .cache/hugging
 export PIP_CACHE_DIR		= .cache/pip
 
-PY	= python3
+PY	= python
 VENV	= .venv
 UV	= uv
 PDB	= pudb
@@ -32,7 +32,7 @@ build:
 	fi
 
 run: build
-	$(UV) run $(PY) -m src $(ARGS)
+	$(UV) run --no-sync $(PY) -m src $(ARGS)
 
 %:
 	@:
@@ -43,8 +43,8 @@ debug: build
 
 lint: build
 	@echo "\0"; \
-	$(UV) run flake8 src; \
-	$(UV) run mypy src
+	$(UV) run --no-sync flake8 src; \
+	$(UV) run mypy --no-sync src
 
 
 lint-strict: build
