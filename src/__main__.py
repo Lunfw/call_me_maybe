@@ -76,9 +76,9 @@ class Main:
         self.model = Small_LLM_Model()
         self.translated = Translator(
                 self.model.get_path_to_vocab_file(), self.functions)
-        self.run()
+        print(Format.colored('\n│ DONE!! Written to ' + self.run(), 'GOLD'))
 
-    def run(self) -> None:
+    def run(self) -> str:
         Format().draw_margin()
         results: List[str] = []
         max_tokens: int = int(Parser.parse()['max_token'])
@@ -94,10 +94,14 @@ class Main:
                     "parameters": llm_json['parameters']
             }
             results.append(result)
+        name: str = Parser.parse()['output']
         if (not path.exists('data/output')):
             makedirs('data/output')
-        file_dump: str = 'data/output/' + Parser.parse()['output']
+        if (Parser.parse()['output'].rfind('/') != -1):
+            name = Parser.parse()['output'].split('/')[-1]
+        file_dump: str = 'data/output/' + name
         dump(results, open(file_dump, 'w'), indent=2)
+        return (file_dump)
 
     def debug(self) -> None:
         print('')
@@ -119,5 +123,4 @@ if (__name__ == "__main__"):
         Main()
     except Exception as e:
         print(Format.colored(f'\nError: {e}', 'RED'), file=stderr)
-    print(Format.colored('\n\n│ DONE!', 'GOLD'))
     exit(0)

@@ -57,7 +57,7 @@ class Translator:
         print(Format.colored('│ ANSWER: ', 'GREEN'), end='')
         for char in output:
             print(Format.colored(char, 'GREEN'), end='', flush=True)
-            sleep(0.03)
+            sleep(0.02)
         end = perf_counter()
         print(Format.colored(f' ({end - start:.2f} sec)', 'GREEN'))
         return (output)
