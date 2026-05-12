@@ -1,6 +1,7 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Iterator
 from json import load
 from src.colors import Format
+from src.schema import GenerationState
 from numpy import argmax
 from time import sleep, perf_counter
 
@@ -30,34 +31,38 @@ class Translator:
             return (load(f))
 
     def get_prompt(self, prompt: str) -> str:
-        temp: List[str] = [self.context,
-                           '<|im_start|>user\n/no_think\n',
-                           prompt,
-                           '<|im_end|>\n<|im_start|>assistant\n'
-                        ]
+        temp: List[str] = [
+                self.context,
+                '<|im_start|>user\n/no_think\n',
+                prompt,
+                '<|im_end|>\n<|im_start|>assistant\n'
+                ]
         prompt = ''.join(temp)
         return (prompt)
 
-    def generate(self, prompt: str, model, max_tokens: int) -> str:
-        start = perf_counter()
-        prompt: str = self.get_prompt(prompt)
-        input_ids = model.encode(prompt).squeeze().tolist()
-        prompt_len = len(input_ids)
+    def generate(self,
+                 prompt: str,
+                 functions: List[Any],
+                 model,
+                 max_tokens: int) -> Dict[str, Any]:
+        state: GenerationState = GenerationState.START
+        input_ids: List[int] = model.encode(prompt)
+        prompt_len: int = len(input_ids)
+        selected: Any = None
+        partial: str = ''
+
         for i in range(max_tokens):
-            logits = model.get_logits_from_input_ids(input_ids)
-            next_token = argmax(logits)
-            if (next_token == 151645):
-                break
-            input_ids.append(next_token)
-        output = model.decode(input_ids[prompt_len:])
-        json_start = output.find('{')
-        json_end = output.rfind('}')
-        if (json_start != -1 and json_end != -1):
-            output = output[json_start:json_end + 1]
-        print(Format.colored('│ ANSWER: ', 'GREEN'), end='')
-        for char in output:
-            print(Format.colored(char, 'GREEN'), end='', flush=True)
-            sleep(0.02)
-        end = perf_counter()
-        print(Format.colored(f' ({end - start:.2f} sec)', 'GREEN'))
-        return (output)
+            pass
+        return ({})
+
+    def get_token(self, expected: str) -> Iterator[int]:
+        for token_string, token_id in self.vocab.items():
+            if (expected.startswith(token_string)):
+                yield token_id
+
+    @staticmethod
+    def get_matched(partial: str, expected: str) -> int:
+        for length in range(len(expected), 0, -1):
+            if (partial[-length:] == expected[:length]):
+                return (length)
+        return (0)

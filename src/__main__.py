@@ -1,6 +1,6 @@
 from llm_sdk import Small_LLM_Model
 from sys import argv, exit, stderr
-from typing import Dict, Any, Iterator, List, Union, Tuple
+from typing import Dict, Any, List, Union, Tuple
 from json import load, dump, loads
 from argparse import ArgumentParser
 from src.schema import FunctionDefinition, Prompt
@@ -85,15 +85,14 @@ class Main:
         for prompt in self.prompts:
             print(Format.colored('\n\n│ PROMPT: ' + prompt.prompt, 'CYAN'))
             llm_json = loads(self.translated.generate(prompt.prompt,
-                                             self.model,
-                                             max_tokens)
-                             )
+                                                      self.functions,
+                                                      self.model,
+                                                      max_tokens))
             result = {
                     "prompt": prompt.prompt,
                     "name": llm_json['name'],
                     "parameters": llm_json['parameters']
             }
-            results.append(result)
         name: str = Parser.parse()['output']
         if (not path.exists('data/output')):
             makedirs('data/output')
@@ -119,8 +118,11 @@ if (__name__ == "__main__"):
     if (len(argv) < 2 or argv[1] == ''):
         print('Usage: make run <prompt>')
         exit(1)
+    Main()
+    '''
     try:
         Main()
     except Exception as e:
         print(Format.colored(f'\nError: {e}', 'RED'), file=stderr)
+    '''
     exit(0)
