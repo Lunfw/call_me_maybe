@@ -1,12 +1,13 @@
 from llm_sdk import Small_LLM_Model
 from sys import argv, exit, stderr
-from typing import Dict, Any, List, Union, Tuple
+from typing import Dict, Any, List, Union, Tuple, Iterator
 from json import load, dump, loads
 from argparse import ArgumentParser
 from src.schema import FunctionDefinition, Prompt
 from src.translator import Translator
 from src.colors import Format
 from os import path, makedirs
+from time import perf_counter
 from pydantic import ValidationError
 
 
@@ -27,7 +28,7 @@ class Parser:
 
     @staticmethod
     def if_exist(receipt: Dict[str, str]) -> Dict[str, Any]:
-        exclude: Tuple[str] = ('max_token', 'output', 'stdin')
+        exclude: Tuple[str, str, str] = ('max_token', 'output', 'stdin')
         for i in receipt.keys():
             try:
                 if (path.exists(receipt[i]) or i in exclude):
@@ -41,12 +42,12 @@ class Parser:
 
 class Loader:
     @staticmethod
-    def json_load(file: str) -> List[Any]:
+    def json_load(file: str) -> Any:
         with open(file) as f:
             return load(f)
 
     @staticmethod
-    def json_get(data: Dict[str, Any]) -> None:
+    def json_get(data: Dict[str, Any]) -> Iterator[Any]:
         exclude = ('max_token', 'output', 'stdin')
         for key, value in data.items():
             if (key not in exclude):
@@ -70,17 +71,21 @@ class Loader:
 
 class Main:
     def __init__(self) -> None:
+        start = perf_counter()
         self.functions, self.prompts = Loader.json_get(
                 Parser.if_exist(Parser.parse())
                 )
         self.model = Small_LLM_Model()
         self.translated = Translator(
                 self.model.get_path_to_vocab_file(), self.functions)
-        print(Format.colored('\n│ DONE!! Written to ' + self.run(), 'GOLD'))
+        print(Format.colored('\n\n│ DONE!! Written to ' + self.run(), 'GOLD'))
+        print(Format.colored(
+            f'│ > (in {perf_counter() - start:.2f}s)', 'GREY')
+              )
 
     def run(self) -> str:
         Format().draw_margin()
-        results: List[str] = []
+        results: List[Dict[str, Any]] = []
         max_tokens: int = int(Parser.parse()['max_token'])
         for prompt in self.prompts:
             print(Format.colored('\n\n│ PROMPT: ' + prompt.prompt, 'CYAN'))
@@ -88,11 +93,12 @@ class Main:
                                                       self.functions,
                                                       self.model,
                                                       max_tokens))
-            result = {
+            result: Dict[str, Any] = {
                     "prompt": prompt.prompt,
                     "name": llm_json['name'],
                     "parameters": llm_json['parameters']
             }
+            results.append(result)
         name: str = Parser.parse()['output']
         if (not path.exists('data/output')):
             makedirs('data/output')
@@ -118,11 +124,8 @@ if (__name__ == "__main__"):
     if (len(argv) < 2 or argv[1] == ''):
         print('Usage: make run <prompt>')
         exit(1)
-    Main()
-    '''
     try:
         Main()
     except Exception as e:
         print(Format.colored(f'\nError: {e}', 'RED'), file=stderr)
-    '''
     exit(0)

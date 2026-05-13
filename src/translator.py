@@ -1,7 +1,8 @@
 from typing import Dict, Any, List, Iterator, Tuple
 from json import load, dumps
 from src.colors import Format
-from numpy import argmax, array, float64
+from numpy import float64
+from time import sleep, perf_counter
 import numpy as np
 
 
@@ -9,11 +10,16 @@ class Translator:
     def __init__(self, vocab_path: str, funcs: List[Any]) -> None:
         self.vocab: Dict[str, int] = self.load_vocab(vocab_path)
         self.context: str = Translator.load_context('context.md', funcs)
-        self.id_to_token: Dict[int, str] = {v: k for k, v in self.vocab.items()}
+        self.id_to_token: Dict[int, str] = {
+                v: k for k, v in self.vocab.items()
+                }
         self._funcs: List[Any] = funcs
         self._cache: Dict[str, List[int]] = {}
         self._num_tokens: Dict[int, str] = {}
         self._string_tokens: List[int] = []
+        self._string_tokens_arr: Any = None
+        self._ready: bool = False
+        self._filter_num_tokens()
 
     @staticmethod
     def load_context(context_path: str, functions: List[Any]) -> str:
@@ -27,7 +33,7 @@ class Translator:
             return f.read() + text + '<|im_end|>'
 
     @staticmethod
-    def load_vocab(vocab_path: str) -> Dict[str, int]:
+    def load_vocab(vocab_path: str) -> Any:
         with open(vocab_path) as f:
             return load(f)
 
@@ -53,27 +59,36 @@ class Translator:
             if clean and all(c in allowed_chars for c in clean):
                 self._num_tokens[tid] = clean
 
-    def _filter_string_tokens(self, model: Any) -> None:
+    def _filter_string_tokens(self) -> None:
         quote_chars = {'"', '\u201c', '\u201d', '\u2018', '\u2019'}
-        self._string_tokens = []
-        for tid in self.id_to_token:
-            decoded = model.decode([tid])
-            if not any(c in decoded for c in quote_chars):
-                self._string_tokens.append(tid)
+        self._string_tokens = [
+            tid for tid, ts in self.id_to_token.items()
+            if not any(c in ts for c in quote_chars)
+        ]
+        self._string_tokens_arr = np.array(self._string_tokens, dtype=np.int64)
 
-    def _get_max_id(self, model: Any, input_ids: List[int],
-                    allowed_ids: List[int]) -> int:
+    def _ensure_ready(self) -> None:
+        if not self._ready:
+            self._filter_string_tokens()
+            self._ready = True
+
+    def _scores(self, model: Any, input_ids: List[int]) -> Any:
         raw = model.get_logits_from_input_ids(input_ids)
         if hasattr(raw, 'detach'):
             raw = raw.detach()
         if hasattr(raw, 'numpy'):
             raw = raw.numpy()
-        scores = np.array(raw, dtype=float64).flatten()
-        allowed = np.array(allowed_ids, dtype=np.int64)
-        return int(allowed[np.argmax(scores[allowed])].item())
+        return np.array(raw, dtype=float64).flatten()
+
+    def _get_max_id(self, model: Any, input_ids: List[int],
+                    allowed_ids: Any) -> int:
+        scores = self._scores(model, input_ids)
+        arr = np.array(allowed_ids, dtype=np.int64)
+        return int(arr[np.argmax(scores[arr])].item())
 
     def _generate_from_trie(self, model: Any, input_ids: List[int],
-                             candidates: Dict[str, List[int]]) -> Tuple[str, List[int]]:
+                            candidates: Dict[str, List[int]]
+                            ) -> Tuple[str, List[int]]:
         names: List[str] = list(candidates.keys())
         i: int = 0
         while len(names) > 1:
@@ -91,39 +106,38 @@ class Translator:
                 token = list(groups.keys())[0]
                 input_ids = input_ids + [token]
             else:
-                allowed = list(groups.keys())
-                token = self._get_max_id(model, input_ids, allowed)
+                token = self._get_max_id(model, input_ids, list(groups.keys()))
                 input_ids = input_ids + [token]
                 names = groups[token]
             i += 1
         choice: str = names[0]
-        remaining: List[int] = candidates[choice][i:]
-        input_ids = input_ids + remaining
+        input_ids = input_ids + candidates[choice][i:]
         return choice, input_ids
 
-    def _generate_numbers(self, model: Any,
-                          input_ids: List[int],
+    def _generate_numbers(self, model: Any, input_ids: List[int],
                           terminator: str) -> Tuple[str, List[int]]:
-        result: str = ''
         end_ids: List[int] = [
-            self.vocab[t] for t in [',', '}', ', "', '}"']
-            if t in self.vocab and terminator.startswith(t)
+            tid for ts, tid in self.vocab.items()
+            if ts and terminator.startswith(ts)
         ]
-        if not end_ids:
-            end_ids = [
-                tid for ts, tid in self.vocab.items()
-                if ts and terminator.startswith(ts)
-            ]
+        num_ids: List[int] = list(self._num_tokens.keys())
+        end_arr = np.array(end_ids, dtype=np.int64)
+        result: str = ''
         while True:
-            allowed: List[int] = list(self._num_tokens.keys()) + end_ids
-            if result:
-                allowed = [
-                    i for i in allowed
-                    if '-' not in self._num_tokens.get(i, '-x')
-                ]
+            if not result:
+                allowed = np.array(
+                    [i for i in num_ids
+                     if '-' not in self._num_tokens[i] or result == ''],
+                    dtype=np.int64
+                )
             else:
-                allowed = [i for i in allowed if i not in end_ids]
-            best = self._get_max_id(model, input_ids, allowed)
+                no_minus = np.array(
+                    [i for i in num_ids if '-' not in self._num_tokens[i]],
+                    dtype=np.int64
+                )
+                allowed = np.concatenate([no_minus, end_arr])
+            scores = self._scores(model, input_ids)
+            best = int(allowed[np.argmax(scores[allowed])].item())
             if best in end_ids:
                 break
             result += self._num_tokens[best]
@@ -132,26 +146,19 @@ class Translator:
 
     def _generate_string(self, model: Any,
                          input_ids: List[int]) -> Tuple[str, List[int]]:
+        end_ids: List[int] = [self.vocab['"']] if '"' in self.vocab else []
+        end_arr = np.array(end_ids, dtype=np.int64)
+        allowed_arr = np.concatenate([self._string_tokens_arr, end_arr])
         result: str = ''
-        end_ids: List[int] = [
-            self.vocab[t] for t in ['"'] if t in self.vocab
-        ]
         while True:
-            allowed: List[int] = self._string_tokens + end_ids
-            raw = model.get_logits_from_input_ids(input_ids)
-            if hasattr(raw, 'detach'):
-                raw = raw.detach()
-            if hasattr(raw, 'numpy'):
-                raw = raw.numpy()
-            scores = np.array(raw, dtype=float64).flatten()
-            for eid in end_ids:
-                scores[eid] += 3.0
-            token_id = int(
-                np.array(allowed)[np.argmax(scores[np.array(allowed)])].item()
-            )
+            scores = self._scores(model, input_ids)
+            scores[end_arr] += 10.0
+            token_id = int(allowed_arr[np.argmax(scores[allowed_arr])].item())
             if token_id in end_ids:
                 break
-            result += model.decode([token_id])
+            decoded = self.id_to_token.get(token_id, '')
+            decoded = decoded.replace('\u0120', ' ').replace('Ġ', ' ')
+            result += decoded
             input_ids = input_ids + [token_id]
             if len(result) > 200:
                 break
@@ -162,13 +169,13 @@ class Translator:
                  functions: List[Any],
                  model: Any,
                  max_tokens: int) -> str:
-        self._filter_num_tokens()
-        self._filter_string_tokens(model)
+        self._ensure_ready()
 
         fn_tokens: Dict[str, List[int]] = {
             f.name: self._enc(model, f.name)
             for f in functions if f.name is not None
         }
+
         param_key_tokens: Dict[str, Dict[str, List[int]]] = {
             f.name: {k: self._enc(model, k + '": ') for k in f.parameters}
             for f in functions if f.name is not None
@@ -186,8 +193,14 @@ class Translator:
         selected: Any = next(
             (f for f in functions if f.name == result_name), None
         )
-        arg_keys: List[str] = list(selected.parameters.keys()) if selected else []
+
+        if (selected):
+            arg_keys: List[str] = list(selected.parameters.keys())
+        else:
+            arg_keys = []
         result_params: Dict[str, Any] = {}
+
+        start = perf_counter()
 
         input_ids += self._enc(model, '", "parameters": {')
 
@@ -220,7 +233,12 @@ class Translator:
         input_ids += self._enc(model, '}}')
 
         dumped = dumps({'name': result_name, 'parameters': result_params})
-        print(Format.colored(f'│ ANSWER: {dumped}', 'CYAN'))
+        end = perf_counter()
+        print(Format.colored('│ ANSWER:', 'CYAN'), end='', flush=True)
+        for i in range(len(dumped)):
+            print(Format.colored(dumped[i], 'CYAN'), end='', flush=True)
+            sleep(0.01)
+        print(Format.colored(f' ({end - start:.2f}s)', 'CYAN'), end='')
         return dumped
 
     def get_token(self, expected: str) -> Iterator[int]:

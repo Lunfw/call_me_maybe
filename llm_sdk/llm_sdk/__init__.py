@@ -12,7 +12,7 @@ from huggingface_hub import hf_hub_download
 import os
 
 
-logging.set_verbosity_error()  # keep the console clean
+logging.set_verbosity_error()
 
 
 class Small_LLM_Model:
@@ -26,7 +26,6 @@ class Small_LLM_Model:
     ) -> None:
         self._model_name = model_name
 
-        # Auto-select device with priority: mps > cuda > cpu
         if device is None:
             if torch.backends.mps.is_available():
                 device = "mps"

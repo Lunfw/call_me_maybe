@@ -23,5 +23,8 @@ explicit = true
 [project.scripts]
 run = "src.__main__:main"
 
+[mypy]
+ignore_missing_imports = true
+
 [tool.mypy]
 mypy_path = "llm_sdk"
