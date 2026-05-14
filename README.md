@@ -71,7 +71,6 @@ rm -rf ~/.cache/huggingface # in case you ran `uv run python ...` instead of `ma
 |   Qwen: Qwen3-06B, Qwen3-06B-Base, Qwen2.5-0.5B
 |   SmolLM2: SmolLM2-135M, SmolLM2-135M-Instruct
 |   Meta: opt-125M
-|   CompactAI: CompactAI-O/TMLM-Haiku-2.3
 
 #   Note: Meta, SmolLM2 models are almost unusable. The output.json they return is completely false. Stick to Qwen's model if you want accuracy and not complete BS.
 #   Note: Qwen3-06B-Base is actually faster than Qwen3-06B, and provides the same output.json.
