@@ -19,13 +19,12 @@ class Parser:
         parser = ArgumentParser()
         parser.add_argument('--functions_definition', required=True)
         parser.add_argument('--input', required=True)
-        parser.add_argument('--stdin', default=False)
         parser.add_argument('--model', default='Qwen/Qwen3-0.6B')
         parser.add_argument(
                 '--output',
                 default='function_calling_results.json'
                 )
-        parser.add_argument('--max_token', default=200)
+        parser.add_argument('--max_token', default=2048)
         args = parser.parse_args()
         return (vars(args))
 
@@ -33,7 +32,6 @@ class Parser:
     def if_exist(receipt: Dict[str, str]) -> Dict[str, Any]:
         exclude: Tuple[Any] = ('max_token',
                                'output',
-                               'stdin',
                                'model'
                                )
         for i in receipt.keys():
@@ -48,15 +46,32 @@ class Parser:
 
     @staticmethod
     def model_allowed(receipt: str) -> str:
-        permits: Tuple[str] = ('Qwen/Qwen3-0.6B',
-                               'Qwen/Qwen3.5-0.8B',
-                               'Qwen/Qwen2.5-0.5B-Instruct',
+        permits: Tuple[Any] = ('Qwen/Qwen3-0.6B',
+                               'Qwen/Qwen3-0.6B-Base',
+                               'Qwen/Qwen2.5-0.5B',
                                'HuggingFaceTB/SmolLM2-135M',
-                               'facebook/opt-125M',
-                               'HuggingFaceTB/SmolLM2-135M-Instruct'
+                               'HuggingFaceTB/SmolLM2-135M-Instruct',
+                               'facebook/opt-125M'
                                )
         if (receipt in permits):
             return (receipt)
+
+        if (receipt == 'all'):
+            print(Format.colored('\n│ Available models:\n', 'YELLOW'))
+            for i in range(len(permits)):
+                print(Format.colored(f"│ [{i}] -> {permits[i]}", 'GREY'))
+            while True:
+                fd = stdin.fileno()
+                old = tcgetattr(fd)
+                setraw(fd)
+                selected = stdin.read(1)
+                tcsetattr(fd, TCSADRAIN, old)
+                if (selected in [str(i) for i in range(len(permits))]):
+                    return (permits[int(selected)])
+                elif (selected == '\x03'):
+                    raise KeyboardInterrupt('Process interrupted')
+                else:
+                    continue
 
         candidates: List[str] = [p for p in permits
                                  if receipt.lower() in p.lower()]
@@ -70,7 +85,7 @@ class Parser:
         print(Format.colored(
             f"\n│ WARNING: {receipt} matches several models.", 'YELLOW')
               )
-        print(Format.colored(f"│ You can choose which to use.", 'YELLOW'))
+        print(Format.colored(f"│ You can choose one to use.", 'YELLOW'))
         print(Format.colored(f"│ Available models:\n", 'YELLOW'))
 
         for i in range(len(candidates)):
@@ -85,6 +100,8 @@ class Parser:
 
             if (selected in [str(i) for i in range(len(candidates))]):
                 return (candidates[int(selected)])
+            elif (selected == '\x03'):
+                raise KeyboardInterrupt('Process interrupted')
             else:
                 continue
 
@@ -96,7 +113,7 @@ class Loader:
 
     @staticmethod
     def json_get(data: Dict[str, Any]) -> Iterator[Any]:
-        exclude = ('max_token', 'output', 'stdin', 'model')
+        exclude = ('max_token', 'output', 'model')
         for key, value in data.items():
             if (key not in exclude):
                 yield Loader.json_parse(Loader.json_load(value), key)
@@ -129,6 +146,7 @@ class Main:
         start = perf_counter()
         self.translated = Translator(
                 self.model.get_path_to_vocab_file(), self.functions)
+
         print(Format.colored('\n\n│ DONE!! Written to ' + self.run(), 'GOLD'))
         print(Format.colored(
             f'│ > (in {perf_counter() - start:.2f}s)', 'GREY')
