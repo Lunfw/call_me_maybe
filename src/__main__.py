@@ -1,5 +1,5 @@
 from llm_sdk import Small_LLM_Model
-from sys import argv, exit, stderr
+from sys import argv, exit, stderr, stdin
 from typing import Dict, Any, List, Union, Tuple, Iterator
 from json import load, dump, loads
 from argparse import ArgumentParser
@@ -9,6 +9,8 @@ from src.colors import Format
 from os import path, makedirs
 from time import perf_counter
 from pydantic import ValidationError
+from termios import tcgetattr, tcsetattr, TCSADRAIN
+from tty import setraw
 
 
 class Parser:
@@ -18,6 +20,7 @@ class Parser:
         parser.add_argument('--functions_definition', required=True)
         parser.add_argument('--input', required=True)
         parser.add_argument('--stdin', default=False)
+        parser.add_argument('--model', default='Qwen/Qwen3-0.6B')
         parser.add_argument(
                 '--output',
                 default='function_calling_results.json'
@@ -28,7 +31,11 @@ class Parser:
 
     @staticmethod
     def if_exist(receipt: Dict[str, str]) -> Dict[str, Any]:
-        exclude: Tuple[str, str, str] = ('max_token', 'output', 'stdin')
+        exclude: Tuple[Any] = ('max_token',
+                               'output',
+                               'stdin',
+                               'model'
+                               )
         for i in receipt.keys():
             try:
                 if (path.exists(receipt[i]) or i in exclude):
@@ -39,6 +46,47 @@ class Parser:
                 raise FileNotFoundError('File not found -> ' + receipt[i])
         return (receipt)
 
+    @staticmethod
+    def model_allowed(receipt: str) -> str:
+        permits: Tuple[str] = ('Qwen/Qwen3-0.6B',
+                               'Qwen/Qwen3.5-0.8B',
+                               'Qwen/Qwen2.5-0.5B-Instruct',
+                               'HuggingFaceTB/SmolLM2-135M',
+                               'facebook/opt-125M',
+                               'HuggingFaceTB/SmolLM2-135M-Instruct'
+                               )
+        if (receipt in permits):
+            return (receipt)
+
+        candidates: List[str] = [p for p in permits
+                                 if receipt.lower() in p.lower()]
+
+        if (len(candidates) == 1):
+            return (candidates[0])
+
+        if (not len(candidates)):
+            raise ValueError('Model not found/not permitted -> ' + receipt)
+
+        print(Format.colored(
+            f"\n│ WARNING: {receipt} matches several models.", 'YELLOW')
+              )
+        print(Format.colored(f"│ You can choose which to use.", 'YELLOW'))
+        print(Format.colored(f"│ Available models:\n", 'YELLOW'))
+
+        for i in range(len(candidates)):
+            print(Format.colored(f"│ [{i}] -> {candidates[i]}", 'GREY'))
+
+        while True:
+            fd = stdin.fileno()
+            old = tcgetattr(fd)
+            setraw(fd)
+            selected = stdin.read(1)
+            tcsetattr(fd, TCSADRAIN, old)
+
+            if (selected in [str(i) for i in range(len(candidates))]):
+                return (candidates[int(selected)])
+            else:
+                continue
 
 class Loader:
     @staticmethod
@@ -48,7 +96,7 @@ class Loader:
 
     @staticmethod
     def json_get(data: Dict[str, Any]) -> Iterator[Any]:
-        exclude = ('max_token', 'output', 'stdin')
+        exclude = ('max_token', 'output', 'stdin', 'model')
         for key, value in data.items():
             if (key not in exclude):
                 yield Loader.json_parse(Loader.json_load(value), key)
@@ -71,11 +119,14 @@ class Loader:
 
 class Main:
     def __init__(self) -> None:
-        start = perf_counter()
+        args = Parser.parse()
+        args['model'] = Parser.model_allowed(args['model'])
+        self.debug(args['model'], args['input'], args['functions_definition'])
         self.functions, self.prompts = Loader.json_get(
-                Parser.if_exist(Parser.parse())
+                Parser.if_exist(args)
                 )
-        self.model = Small_LLM_Model()
+        self.model = Small_LLM_Model(model_name=args['model'])
+        start = perf_counter()
         self.translated = Translator(
                 self.model.get_path_to_vocab_file(), self.functions)
         print(Format.colored('\n\n│ DONE!! Written to ' + self.run(), 'GOLD'))
@@ -108,16 +159,12 @@ class Main:
         dump(results, open(file_dump, 'w'), indent=2)
         return (file_dump)
 
-    def debug(self) -> None:
+    def debug(self, model: str, input_path: str, func_path: str) -> None:
         print('')
-        Format().draw_margin()
-        for i in self.functions:
-            print(Format.colored(f'\nFunction: {i.name}', 'GREEN'))
-            print(i.description)
-            print(f'Parameters: {i.parameters}')
+        print(Format.colored('│ MODEL: ' + model, 'GREEN'))
+        print(Format.colored('│ PROMPTS: ' + input_path, 'GREEN'))
+        print(Format.colored('│ FUNCTIONS: ' + func_path, 'GREEN'))
         print('')
-        for i in self.prompts:
-            print(Format.colored(f'Prompt: {i.prompt}', 'GREEN'))
 
 
 if (__name__ == "__main__"):
