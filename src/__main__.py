@@ -83,7 +83,7 @@ class Parser:
             raise ValueError('Model not found/not permitted -> ' + receipt)
 
         print(Format.colored(
-            f"\n│ WARNING: {receipt} matches several models.", 'YELLOW')
+            f"\n│ WARNING: '{receipt}' matches several models.", 'YELLOW')
               )
         print(Format.colored(f"│ You can choose one to use.", 'YELLOW'))
         print(Format.colored(f"│ Available models:\n", 'YELLOW'))
