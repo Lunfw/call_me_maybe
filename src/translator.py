@@ -33,7 +33,7 @@ class Translator:
             return f.read() + text + '<|im_end|>'
 
     @staticmethod
-    def load_vocab(vocab_path: str) -> Any:
+    def load_vocab(vocab_path: str) -> Dict[str, int]:
         with open(vocab_path) as f:
             return load(f)
 
@@ -152,7 +152,7 @@ class Translator:
         result: str = ''
         while True:
             scores = self._scores(model, input_ids)
-            scores[end_arr] += 10.0
+            scores[end_arr] += 11.0
             token_id = int(allowed_arr[np.argmax(scores[allowed_arr])].item())
             if token_id in end_ids:
                 break
@@ -240,15 +240,3 @@ class Translator:
             sleep(0.01)
         print(Format.colored(f' ({end - start:.2f}s)', 'CYAN'), end='')
         return dumped
-
-    def get_token(self, expected: str) -> Iterator[int]:
-        for token_string, token_id in self.vocab.items():
-            if expected.startswith(token_string):
-                yield token_id
-
-    @staticmethod
-    def get_matched(partial: str, expected: str) -> int:
-        for length in range(len(expected), 0, -1):
-            if partial[-length:] == expected[:length]:
-                return length
-        return 0
